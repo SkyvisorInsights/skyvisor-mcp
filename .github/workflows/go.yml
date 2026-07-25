@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 env:
-  GOPRIVATE: github.com/FACorreiaa/*
+  GOPRIVATE: github.com/SkyvisorInsights/*
 
 permissions:
   contents: read

@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	shared "github.com/FACorreiaa/skyvisor-go-shared/apiclient"
-	"github.com/FACorreiaa/skyvisor-go-shared/domain"
+	shared "github.com/SkyvisorInsights/skyvisor-go-shared/apiclient"
+	"github.com/SkyvisorInsights/skyvisor-go-shared/domain"
 )
 
 // Client wraps the shared skyvisor-api HTTP client with a fixed access token

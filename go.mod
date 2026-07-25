@@ -1,4 +1,4 @@
-module github.com/FACorreiaa/skyvisor-mcp
+module github.com/SkyvisorInsights/skyvisor-mcp
 
 go 1.26.5
 
@@ -13,4 +13,4 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 )
 
-require github.com/FACorreiaa/skyvisor-go-shared v0.1.0
+require github.com/SkyvisorInsights/skyvisor-go-shared v0.2.0

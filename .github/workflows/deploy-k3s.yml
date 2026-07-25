@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GOPRIVATE: github.com/FACorreiaa/*
-  IMAGE: ghcr.io/facorreiaa/skyvisor-mcp
+  GOPRIVATE: github.com/SkyvisorInsights/*
+  IMAGE: ghcr.io/skyvisorinsights/skyvisor-mcp
 
 jobs:
   build:
@@ -81,7 +81,7 @@ jobs:
       - name: Check out infrastructure repository
         uses: actions/checkout@v6
         with:
-          repository: FACorreiaa/skyvisor-infra
+          repository: SkyvisorInsights/skyvisor-infra
           ref: main
           token: ${{ secrets.INFRA_TOKEN }}
       - name: Update staging image tag

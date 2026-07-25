@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/FACorreiaa/skyvisor-mcp/internal/apiclient"
+	"github.com/SkyvisorInsights/skyvisor-mcp/internal/apiclient"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
