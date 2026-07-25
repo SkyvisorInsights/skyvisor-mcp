@@ -1,0 +1,40 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  GOPRIVATE: github.com/FACorreiaa/*
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Grant access to private Go modules
+        run: git config --global url."https://x-access-token:${{ secrets.INFRA_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: go build -o /tmp/skyvisor-mcp ./cmd/skyvisor-mcp
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          secrets: |
+            git_token=${{ secrets.INFRA_TOKEN }}
+          context: .
+          push: false
+          tags: skyvisor-mcp:ci
