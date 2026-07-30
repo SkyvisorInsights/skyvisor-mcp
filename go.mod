@@ -13,4 +13,4 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 )
 
-require github.com/SkyvisorInsights/skyvisor-go-shared v0.2.0
+require github.com/SkyvisorInsights/skyvisor-go-shared v0.3.0
