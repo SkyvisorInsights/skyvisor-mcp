@@ -114,6 +114,14 @@ func (c *Client) TestWebhookIntegration(ctx context.Context, integrationID strin
 	return c.inner.TestWebhookIntegration(ctx, c.token, integrationID)
 }
 
+func (c *Client) TrustShares(ctx context.Context) ([]domain.TrustShareLink, error) {
+	return c.inner.TrustShares(ctx, c.token)
+}
+
+func (c *Client) RevokeTrustShare(ctx context.Context, token string) error {
+	return c.inner.RevokeTrustShare(ctx, c.token, token)
+}
+
 func (c *Client) Me(ctx context.Context) (shared.Me, error) {
 	return c.inner.Me(ctx, c.token)
 }
@@ -179,6 +187,7 @@ type (
 	CreateWebhookIntegration  = domain.CreateWebhookIntegration
 	WebhookIntegrationCreated = domain.WebhookIntegrationCreated
 	WebhookDelivery           = domain.WebhookDelivery
+	TrustShareLink            = domain.TrustShareLink
 )
 
 var _ = io.EOF

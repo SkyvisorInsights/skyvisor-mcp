@@ -47,6 +47,7 @@ All API calls send `X-SkyVisor-Client: mcp` for usage metering. Free plan is MCP
 - `record_decision_action`: approve, reject, or execute; approval-required execution is rejected until approved (action)
 - `record_decision_outcome`: record actual prediction/action result and avoided cost (action)
 - `get_decision_trust`: measured precision, false-positive rate, lead time, action success, and scope breakdowns
+- `list_trust_shares` / `revoke_trust_share`: manage published public trust report links (`revoke_trust_share` = MCP action); creating a share is web-only by design — publishing exposes customer data on an unauthenticated URL, so it stays a human-approved action in the web UI and is deliberately not exposed over MCP
 - `list_webhook_integrations`: configured workflow destinations and delivery status
 - `create_webhook_integration`: signed public-HTTPS endpoint; signing secret returned once (action)
 - `test_webhook_integration`: sends and audits a signed test delivery (action)

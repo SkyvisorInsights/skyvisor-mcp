@@ -115,6 +115,9 @@ type createWebhookInput struct {
 type webhookIDInput struct {
 	IntegrationID string `json:"integration_id"`
 }
+type revokeTrustShareInput struct {
+	Token string `json:"token" jsonschema:"the trust share token to revoke"`
+}
 
 type flightOutput struct {
 	Flight apiclient.Flight `json:"flight" jsonschema:"current flight record"`
@@ -175,6 +178,12 @@ type webhookCreatedOutput struct {
 }
 type webhookDeliveryOutput struct {
 	Delivery apiclient.WebhookDelivery `json:"delivery"`
+}
+type trustSharesOutput struct {
+	Shares []apiclient.TrustShareLink `json:"shares" jsonschema:"active public trust report links"`
+}
+type revokeTrustShareOutput struct {
+	Revoked bool `json:"revoked"`
 }
 type watchInput struct {
 	Number string `json:"number" jsonschema:"IATA flight number to watch"`
@@ -304,6 +313,8 @@ func newMCPServer(client *apiclient.Client) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "record_decision_action", Description: "Approve, reject, or execute a recommendation. Approval-required actions cannot execute before approval."}, recordDecisionAction(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "record_decision_outcome", Description: "Record what actually happened and whether the action succeeded so trust metrics can be evaluated."}, recordDecisionOutcome(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "get_decision_trust", Description: "Return measured prediction precision, false-positive rate, lead time, action success, and avoided cost."}, getDecisionTrust(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "list_trust_shares", Description: "List active public trust report links for the authenticated Business account."}, listTrustShares(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "revoke_trust_share", Description: "Revoke a published public trust report link. Creating one is intentionally not available over MCP: publishing a trust report is a human-approved, web-only action."}, revokeTrustShare(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "list_webhook_integrations", Description: "List configured Business workflow webhooks and their latest delivery status."}, listWebhookIntegrations(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "create_webhook_integration", Description: "Create a signed HTTPS workflow webhook. The signing secret is returned once. Governed MCP action."}, createWebhookIntegration(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "test_webhook_integration", Description: "Send a signed test event and record the delivery result. Governed MCP action."}, testWebhookIntegration(client))
@@ -469,6 +480,32 @@ func getDecisionTrust(client *apiclient.Client) func(context.Context, *mcp.CallT
 	return func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, trustOutput, error) {
 		metrics, err := client.DecisionTrustMetrics(ctx)
 		return nil, trustOutput{Trust: metrics}, err
+	}
+}
+
+// listTrustShares and revokeTrustShare are deliberately the only trust-share
+// tools exposed over MCP. Creating a share publishes customer operational
+// data to a public, unauthenticated URL — exactly the class of action the
+// platform's human-approval gate exists to stop an agent taking
+// unsupervised. Revoking is the safe direction, so an agent may do it;
+// publishing stays human-only in the web UI. See TestTrustShareToolsAreAsymmetric.
+func listTrustShares(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, trustSharesOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, trustSharesOutput, error) {
+		items, err := client.TrustShares(ctx)
+		return nil, trustSharesOutput{Shares: items}, err
+	}
+}
+
+func revokeTrustShare(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, revokeTrustShareInput) (*mcp.CallToolResult, revokeTrustShareOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input revokeTrustShareInput) (*mcp.CallToolResult, revokeTrustShareOutput, error) {
+		token := strings.TrimSpace(input.Token)
+		if token == "" {
+			return nil, revokeTrustShareOutput{}, errors.New("token is required")
+		}
+		if err := client.RevokeTrustShare(ctx, token); err != nil {
+			return nil, revokeTrustShareOutput{}, err
+		}
+		return nil, revokeTrustShareOutput{Revoked: true}, nil
 	}
 }
 
