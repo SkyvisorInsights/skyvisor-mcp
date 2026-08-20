@@ -26,14 +26,14 @@ func registeredToolNames(t *testing.T) map[string]bool {
 	if err != nil {
 		t.Fatalf("connect server: %v", err)
 	}
-	defer serverSession.Close()
+	defer func() { _ = serverSession.Close() }()
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "0.0.0"}, nil)
 	clientSession, err := client.Connect(ctx, clientTransport, nil)
 	if err != nil {
 		t.Fatalf("connect client: %v", err)
 	}
-	defer clientSession.Close()
+	defer func() { _ = clientSession.Close() }()
 
 	names := map[string]bool{}
 	for tool, err := range clientSession.Tools(ctx, nil) {

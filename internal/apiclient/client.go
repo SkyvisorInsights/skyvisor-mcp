@@ -190,8 +190,10 @@ type (
 	TrustShareLink            = domain.TrustShareLink
 )
 
-var _ = io.EOF
-var _ = shared.Me{}
+var (
+	_ = io.EOF
+	_ = shared.Me{}
+)
 
 func isLoopback(host string) bool {
 	if host == "localhost" {
