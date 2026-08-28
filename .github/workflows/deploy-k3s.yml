@@ -81,7 +81,7 @@ jobs:
       - name: Check out infrastructure repository
         uses: actions/checkout@v6
         with:
-          repository: SkyvisorInsights/skyvisor-infra
+          repository: LuminaVault/LuminaVaultInfra
           ref: main
           token: ${{ secrets.INFRA_TOKEN }}
       - name: Update staging image tag
@@ -89,12 +89,12 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         with:
-          cmd: yq -i '.image.tag = env(IMAGE_TAG)' apps/mcp/values-staging.yaml
+          cmd: yq -i '.image.tag = env(IMAGE_TAG)' apps/skyvisor/mcp/values-staging.yaml
       - name: Commit and push staging tag
         run: |
           git config user.name "skyvisor-mcp-ci"
           git config user.email "ci@skyvisor.app"
-          git add apps/mcp/values-staging.yaml
+          git add apps/skyvisor/mcp/values-staging.yaml
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "chore(mcp): stage image ${IMAGE_TAG}"
           git pull --rebase origin main
