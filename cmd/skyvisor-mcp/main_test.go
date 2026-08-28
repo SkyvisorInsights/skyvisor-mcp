@@ -59,3 +59,29 @@ func TestTrustShareToolsAreAsymmetric(t *testing.T) {
 		t.Error("create_trust_share must not be exposed over MCP: publishing a trust report is a human-approved action")
 	}
 }
+
+func TestSituationToolsAreRegistered(t *testing.T) {
+	names := registeredToolNames(t)
+
+	for _, want := range []string{"get_situation_layers", "get_situation_news", "get_situation_point"} {
+		if !names[want] {
+			t.Errorf("missing tool %q", want)
+		}
+	}
+}
+
+func TestSituationToolsAreReadOnly(t *testing.T) {
+	names := registeredToolNames(t)
+
+	// The situation picture is observed, not authored. An agent has nothing to
+	// write here, and exposing a mutation would be inventing a capability the
+	// API does not have.
+	for _, forbidden := range []string{
+		"create_situation_layer", "set_situation_layer", "delete_situation_observation",
+		"refresh_situation_layer", "create_situation_alert",
+	} {
+		if names[forbidden] {
+			t.Errorf("tool %q must not exist: situation data is read-only", forbidden)
+		}
+	}
+}

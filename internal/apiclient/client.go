@@ -169,6 +169,9 @@ type (
 	Trip                      = domain.Trip
 	AirportBoard              = domain.AirportBoard
 	AnalyticsReport           = domain.AnalyticsReport
+	SituationLayer            = domain.SituationLayer
+	SituationNewsPage         = domain.SituationNewsPage
+	SituationPoint            = domain.SituationPoint
 	WhatIfRequest             = domain.WhatIfRequest
 	WhatIfResult              = domain.WhatIfResult
 	LogisticsOverview         = domain.LogisticsOverview
@@ -206,4 +209,45 @@ func isLoopback(host string) bool {
 func isClusterLocal(host string) bool {
 	host = strings.ToLower(strings.TrimSpace(host))
 	return strings.HasSuffix(host, ".svc") || strings.HasSuffix(host, ".svc.cluster.local")
+}
+
+// SituationLayers returns the global situation layer catalogue.
+func (c *Client) SituationLayers(ctx context.Context) ([]domain.SituationLayer, error) {
+	return c.inner.SituationLayers(ctx, c.token)
+}
+
+// SituationNews returns one page of the situation news rail.
+func (c *Client) SituationNews(ctx context.Context, languages, countries, cursor string, limit int) (domain.SituationNewsPage, error) {
+	return c.inner.SituationNews(ctx, c.token, shared.SituationNewsQuery{
+		Languages: splitCodes(languages),
+		Countries: splitCodes(countries),
+		Cursor:    strings.TrimSpace(cursor),
+		Limit:     limit,
+	})
+}
+
+// SituationPoint returns current conditions for one place.
+func (c *Client) SituationPoint(ctx context.Context, icao string, latitude, longitude float64) (domain.SituationPoint, error) {
+	return c.inner.SituationPoint(ctx, c.token, shared.SituationPointQuery{
+		ICAO:      strings.TrimSpace(icao),
+		Latitude:  latitude,
+		Longitude: longitude,
+	})
+}
+
+// splitCodes reads a comma-separated filter from a tool argument, dropping
+// empties so a trailing comma is not sent on as a filter matching nothing.
+func splitCodes(raw string) []string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	parts := strings.Split(trimmed, ",")
+	codes := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if code := strings.TrimSpace(part); code != "" {
+			codes = append(codes, code)
+		}
+	}
+	return codes
 }

@@ -18,6 +18,21 @@ import (
 type flightInput struct {
 	Number string `json:"number" jsonschema:"IATA flight number, for example TP1363"`
 }
+type situationLayersInput struct{}
+
+type situationNewsInput struct {
+	Languages string `json:"languages,omitempty" jsonschema:"comma-separated BCP-47 codes such as en,fr; omit for every language"`
+	Countries string `json:"countries,omitempty" jsonschema:"comma-separated ISO 3166-1 alpha-2 codes such as US,GB"`
+	Cursor    string `json:"cursor,omitempty" jsonschema:"next_cursor from a previous call; omit for the newest page"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"items per page, default 50, maximum 200"`
+}
+
+type situationPointInput struct {
+	ICAO      string  `json:"icao,omitempty" jsonschema:"aerodrome code such as LPPT or LIS; preferred over coordinates"`
+	Latitude  float64 `json:"lat,omitempty" jsonschema:"latitude, used when no icao is given"`
+	Longitude float64 `json:"lon,omitempty" jsonschema:"longitude, used when no icao is given"`
+}
+
 type airportBoardInput struct {
 	IATA      string `json:"iata" jsonschema:"3-letter IATA airport code, for example LIS"`
 	Direction string `json:"direction,omitempty" jsonschema:"arrivals, departures, or both (default both)"`
@@ -122,6 +137,18 @@ type revokeTrustShareInput struct {
 type flightOutput struct {
 	Flight apiclient.Flight `json:"flight" jsonschema:"current flight record"`
 }
+type situationLayersOutput struct {
+	Layers []apiclient.SituationLayer `json:"layers" jsonschema:"every known layer, with entitlement, availability, freshness and required attribution"`
+}
+
+type situationNewsOutput struct {
+	Page apiclient.SituationNewsPage `json:"page" jsonschema:"one page of the news rail plus the cursor for the next"`
+}
+
+type situationPointOutput struct {
+	Point apiclient.SituationPoint `json:"point" jsonschema:"conditions by block; a block with freshness unknown could not be reached"`
+}
+
 type airportBoardOutput struct {
 	Board apiclient.AirportBoard `json:"board" jsonschema:"arrivals and departures for the airport"`
 }
@@ -318,9 +345,38 @@ func newMCPServer(client *apiclient.Client) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "list_webhook_integrations", Description: "List configured Business workflow webhooks and their latest delivery status."}, listWebhookIntegrations(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "create_webhook_integration", Description: "Create a signed HTTPS workflow webhook. The signing secret is returned once. Governed MCP action."}, createWebhookIntegration(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "test_webhook_integration", Description: "Send a signed test event and record the delivery result. Governed MCP action."}, testWebhookIntegration(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "get_situation_layers", Description: "List the global situation layers this account can read: hazards, seismic, fire, conflict and news. Says which are entitled, which need a credential this deployment lacks, how fresh each is, and the attribution its licence requires."}, getSituationLayers(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "get_situation_news", Description: "Read the world news rail, newest first, with keyset paging. Available on every plan. Each item carries the attribution its licence requires; reproduce it when quoting."}, getSituationNews(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "get_situation_point", Description: "Current conditions for one place, by ICAO aerodrome code or by lat/lon: weather, sea state, air quality, and (paid plans) METAR and TAF. A block marked freshness unknown could not be reached and must not be reported as calm."}, getSituationPoint(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "ask_travel_assistant", Description: "Ask for concise travel guidance. Live facts remain grounded in SkyVisor provider data. Optionally pass trip_id. Counts toward assistant daily quota."}, askAssistant(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "trip_what_if", Description: "Simulate a delay on one trip segment and re-score connection risk without persisting. Counts as MCP action + assistant when AI is enabled."}, tripWhatIf(client))
 	return server
+}
+
+func getSituationLayers(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, situationLayersInput) (*mcp.CallToolResult, situationLayersOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, _ situationLayersInput) (*mcp.CallToolResult, situationLayersOutput, error) {
+		layers, err := client.SituationLayers(ctx)
+		return nil, situationLayersOutput{Layers: layers}, err
+	}
+}
+
+func getSituationNews(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, situationNewsInput) (*mcp.CallToolResult, situationNewsOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input situationNewsInput) (*mcp.CallToolResult, situationNewsOutput, error) {
+		page, err := client.SituationNews(ctx, input.Languages, input.Countries, input.Cursor, input.Limit)
+		return nil, situationNewsOutput{Page: page}, err
+	}
+}
+
+func getSituationPoint(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, situationPointInput) (*mcp.CallToolResult, situationPointOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input situationPointInput) (*mcp.CallToolResult, situationPointOutput, error) {
+		// Either form is valid, but not neither: without a place the server
+		// would have to guess, and 0,0 is in the Gulf of Guinea.
+		if strings.TrimSpace(input.ICAO) == "" && input.Latitude == 0 && input.Longitude == 0 {
+			return nil, situationPointOutput{}, errors.New("give icao, or lat and lon")
+		}
+		point, err := client.SituationPoint(ctx, input.ICAO, input.Latitude, input.Longitude)
+		return nil, situationPointOutput{Point: point}, err
+	}
 }
 
 func getFlight(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, flightInput) (*mcp.CallToolResult, flightOutput, error) {
