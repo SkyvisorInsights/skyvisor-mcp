@@ -178,6 +178,18 @@ type watchesOutput struct {
 type watchOutput struct {
 	Watch apiclient.Watch `json:"watch" jsonschema:"created watch"`
 }
+type agentInboxInput struct {
+	Limit int `json:"limit,omitempty" jsonschema:"maximum events to return; server default 20, maximum 100"`
+}
+type agentInboxOutput struct {
+	Inbox apiclient.AgentInboxPage `json:"inbox" jsonschema:"pending watch notifications, oldest first"`
+}
+type ackAgentInboxInput struct {
+	EventIDs []string `json:"event_ids" jsonschema:"IDs of events to acknowledge, from list_agent_inbox"`
+}
+type ackAgentInboxOutput struct {
+	Result apiclient.AgentInboxAck `json:"result" jsonschema:"how many were acknowledged and how many remain"`
+}
 type usageOutput struct {
 	Usage apiclient.UsageSnapshot `json:"usage" jsonschema:"daily usage vs plan limits"`
 }
@@ -376,6 +388,8 @@ func newMCPServer(client *apiclient.Client) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "create_trip", Description: "Create a SkyVisor trip and optionally attach flight numbers. Counts as an MCP action (Pro+)."}, createTrip(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "list_watches", Description: "List active flight watches for the authenticated account."}, listWatches(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "create_watch", Description: "Start watching a flight number. Counts as an MCP action (Pro+). Free plan is read-only over MCP."}, createWatch(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "list_agent_inbox", Description: "Drain watch notifications that arrived while this agent was not connected, oldest first. Call this to catch up on flight changes rather than re-polling every watch. Read tool."}, listAgentInbox(client))
+	mcp.AddTool(server, &mcp.Tool{Name: "ack_agent_inbox", Description: "Acknowledge inbox events so later drains skip them. Does not delete the record; only this account's queue advances. Does not consume the action quota."}, ackAgentInbox(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "get_usage", Description: "Return today's MCP and assistant usage counters vs plan limits."}, getUsage(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "get_operations_dashboard", Description: "Return the authenticated account's priority queue, watched-flight risk, connection risk, and source freshness."}, getOperationsDashboard(client))
 	mcp.AddTool(server, &mcp.Tool{Name: "list_operational_cases", Description: "Business-only list of shipment, passenger, crew, aircraft, and other operational cases."}, listOperationalCases(client))
@@ -492,6 +506,26 @@ func createWatch(client *apiclient.Client) func(context.Context, *mcp.CallToolRe
 		}
 		watch, err := client.CreateWatch(ctx, input.Number)
 		return nil, watchOutput{Watch: watch}, err
+	}
+}
+
+// listAgentInbox drains watch notifications that accumulated while the agent
+// was not connected. The SSE stream cannot serve this: it drops events for
+// consumers that are not attached, and an agent is detached between turns.
+func listAgentInbox(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, agentInboxInput) (*mcp.CallToolResult, agentInboxOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input agentInboxInput) (*mcp.CallToolResult, agentInboxOutput, error) {
+		page, err := client.AgentInbox(ctx, input.Limit)
+		return nil, agentInboxOutput{Inbox: page}, err
+	}
+}
+
+func ackAgentInbox(client *apiclient.Client) func(context.Context, *mcp.CallToolRequest, ackAgentInboxInput) (*mcp.CallToolResult, ackAgentInboxOutput, error) {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, input ackAgentInboxInput) (*mcp.CallToolResult, ackAgentInboxOutput, error) {
+		if len(input.EventIDs) == 0 {
+			return nil, ackAgentInboxOutput{}, errors.New("event_ids is required")
+		}
+		result, err := client.AckAgentInbox(ctx, input.EventIDs)
+		return nil, ackAgentInboxOutput{Result: result}, err
 	}
 }
 

@@ -66,6 +66,16 @@ func (c *Client) CreateWatch(ctx context.Context, flightNumber string) (domain.W
 	return c.inner.CreateWatch(ctx, c.token, domain.CreateWatch{FlightNumber: flightNumber})
 }
 
+// AgentInbox drains pending watch notifications for the account.
+func (c *Client) AgentInbox(ctx context.Context, limit int) (domain.AgentInboxPage, error) {
+	return c.inner.AgentInbox(ctx, c.token, limit)
+}
+
+// AckAgentInbox acknowledges drained notifications.
+func (c *Client) AckAgentInbox(ctx context.Context, eventIDs []string) (domain.AgentInboxAck, error) {
+	return c.inner.AckAgentInbox(ctx, c.token, domain.AckAgentInbox{EventIDs: eventIDs})
+}
+
 func (c *Client) Usage(ctx context.Context) (domain.UsageSnapshot, error) {
 	return c.inner.GetUsage(ctx, c.token)
 }
@@ -191,6 +201,8 @@ type (
 	WebhookIntegrationCreated = domain.WebhookIntegrationCreated
 	WebhookDelivery           = domain.WebhookDelivery
 	TrustShareLink            = domain.TrustShareLink
+	AgentInboxPage            = domain.AgentInboxPage
+	AgentInboxAck             = domain.AgentInboxAck
 )
 
 var (

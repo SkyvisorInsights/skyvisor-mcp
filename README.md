@@ -59,6 +59,14 @@ In-app connect docs: web `/mcp`.
 - `list_watches` / `create_watch`: flight watches (`create_watch` = MCP action)
 - `ask_travel_assistant`: grounded travel guidance; optional `trip_id` (assistant quota)
 - `trip_what_if`: delay scenario on one segment; re-scores connections; does not persist
+- `list_agent_inbox`: drain watch notifications that arrived while this agent
+  was not connected, oldest first. The SSE stream cannot serve this — it drops
+  frames for consumers that are not attached, and an agent is detached between
+  turns — so events are queued durably instead
+- `ack_agent_inbox`: acknowledge drained events so later drains skip them.
+  Acknowledgement is not deletion: the record persists and only this account's
+  queue advances. Exempt from the action quota and allowed on a read-only
+  grant, since draining a queue is not an operational action
 - `get_usage`: UTC-day MCP + assistant counters vs plan limits
 - `get_operations_dashboard`: account-scoped priority queue, watched-flight risk, connection risk, and data freshness
 - `list_operational_cases` / `get_operational_case`: Business case queue, decisions, outcomes, and audit history

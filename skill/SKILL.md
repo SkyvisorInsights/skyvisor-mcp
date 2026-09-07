@@ -38,10 +38,28 @@ retrying.
 | What cargo is disrupted (Business) | `get_logistics_overview` |
 | What is saved on this account | `list_trips`, `list_watches` |
 | How accurate have our calls been | `get_decision_trust` |
+| What did I miss since last time | `list_agent_inbox` |
 
 Start with `get_operations_dashboard` when the user asks an open question about
 their own operation — it is account-scoped and ranks what matters, so it avoids
 guessing which flight they meant.
+
+## Catching up after a gap
+
+You are disconnected between turns, and the event stream drops what it cannot
+deliver. `list_agent_inbox` is the durable queue that survives that gap.
+
+1. `list_agent_inbox` at the start of a session, or whenever the user asks what
+   changed. It returns oldest first with a `pending` total.
+2. Report what actually matters rather than replaying the list. Several events
+   for one flight usually describe one story.
+3. `ack_agent_inbox` with the IDs you reported, so the next drain does not
+   repeat them. Do not acknowledge events you have not surfaced — that is the
+   only way they get lost.
+4. If `truncated` is true, drain again before concluding you are caught up.
+
+Acknowledging costs no action quota and works on a read-only connection, so
+there is no reason to skip it to save budget.
 
 ## Recipes
 
