@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -246,6 +248,12 @@ func main() {
 func runHTTP(apiURL string) error {
 	addr := value("ADDR", "0.0.0.0:8087")
 	fallbackToken := strings.TrimSpace(os.Getenv("SKYVISOR_OIDC_ACCESS_TOKEN"))
+	// resourceURL is this server's own public identity and authServerURL is
+	// where a client should go to get a token. Both are advertised through
+	// RFC 9728 metadata so an MCP client can connect without a human pasting
+	// a token, which is the whole point of one-click connect.
+	resourceURL := strings.TrimRight(value("MCP_PUBLIC_URL", "http://127.0.0.1:"+portFromAddr(addr)), "/")
+	authServerURL := strings.TrimRight(value("SKYVISOR_AUTH_SERVER_URL", apiURL), "/")
 
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		token := bearerToken(r)
@@ -272,7 +280,8 @@ func runHTTP(apiURL string) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.Handle("/", requireBearerOrFallback(fallbackToken != "", mcpHandler))
+	mux.HandleFunc("/.well-known/oauth-protected-resource", protectedResourceMetadata(resourceURL, authServerURL))
+	mux.Handle("/", requireBearerOrFallback(fallbackToken != "", resourceURL, mcpHandler))
 
 	server := &http.Server{
 		Addr:              addr,
@@ -303,14 +312,50 @@ func runHTTP(apiURL string) error {
 	}
 }
 
-func requireBearerOrFallback(allowFallback bool, next http.Handler) http.Handler {
+// protectedResourceMetadata serves RFC 9728 metadata. A client reads it to
+// discover which authorization server issues tokens for this resource, which
+// is what lets it start an OAuth flow on its own.
+func protectedResourceMetadata(resourceURL, authServerURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		if err := json.NewEncoder(w).Encode(map[string]any{
+			"resource":                 resourceURL,
+			"authorization_servers":    []string{authServerURL},
+			"scopes_supported":         []string{"skyvisor:read", "skyvisor:act"},
+			"bearer_methods_supported": []string{"header"},
+		}); err != nil {
+			slog.Error("write protected resource metadata", "error", err)
+		}
+	}
+}
+
+func requireBearerOrFallback(allowFallback bool, resourceURL string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if bearerToken(r) == "" && !allowFallback {
-			http.Error(w, `{"error":"missing_bearer","message":"Authorization: Bearer <oidc access token> required"}`, http.StatusUnauthorized)
+			// The WWW-Authenticate challenge is what actually starts
+			// discovery: RFC 9728 has clients follow resource_metadata from a
+			// 401 to find the authorization server. Without this header a
+			// client shows an auth error instead of opening a browser, so
+			// one-click connect never begins.
+			w.Header().Set("WWW-Authenticate",
+				`Bearer resource_metadata="`+resourceURL+`/.well-known/oauth-protected-resource"`)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"missing_bearer","message":"Authorization required. Connect via OAuth or supply a bearer token."}` + "\n"))
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// portFromAddr extracts the port from a listen address so the default public
+// URL matches the port actually bound.
+func portFromAddr(addr string) string {
+	if _, port, err := net.SplitHostPort(addr); err == nil && port != "" {
+		return port
+	}
+	return "8087"
 }
 
 func bearerToken(r *http.Request) string {

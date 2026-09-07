@@ -1,6 +1,12 @@
 # SkyVisor MCP
 
-Official Go SDK MCP server for safe access to SkyVisor travel data. Credentials never enter tool arguments or model context.
+Official Go SDK MCP server for safe access to SkyVisor travel data. Credentials
+never enter tool arguments or model context.
+
+Connect with one click: the server publishes RFC 9728 protected-resource
+metadata and challenges unauthenticated requests with `WWW-Authenticate`, so an
+MCP host discovers the authorization server and runs the OAuth flow on its own.
+No token is pasted into a config file.
 
 ## Transports
 
@@ -22,11 +28,25 @@ export SKYVISOR_API_URL=http://127.0.0.1:8080   # or in-cluster http://api.stagi
 go run ./cmd/skyvisor-mcp
 ```
 
-Clients POST to the server URL with `Authorization: Bearer <OIDC access token>` (API audience). Optional `SKYVISOR_OIDC_ACCESS_TOKEN` is a fallback for smoke tests only.
+Clients POST to the server URL with `Authorization: Bearer <token>` — either an
+OAuth access token the host obtained itself, a personal access token, or an
+OIDC access token for the API audience. Optional `SKYVISOR_OIDC_ACCESS_TOKEN`
+is a fallback for smoke tests only, and disables the 401 challenge that starts
+OAuth discovery, so leave it unset anywhere real clients connect.
+
+Two environment variables control what the metadata advertises:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MCP_PUBLIC_URL` | `http://127.0.0.1:<ADDR port>` | This server's external URL, published as the `resource` and in the 401 challenge |
+| `SKYVISOR_AUTH_SERVER_URL` | `SKYVISOR_API_URL` | The authorization server clients are sent to |
 
 Staging / production ingress (after cluster apply): `https://staging-mcp.skyvisor.app` · `https://mcp.skyvisor.app`.
 
-All API calls send `X-SkyVisor-Client: mcp` for usage metering. Free plan is MCP read-only. Check quotas with `get_usage` or `GET /v1/usage`. In-app connect docs: web `/mcp`.
+All API calls send `X-SkyVisor-Client: mcp` for usage metering. Free plan has a
+small daily action budget (5) on top of its reads, so a first write succeeds;
+Pro and Business raise it. Check quotas with `get_usage` or `GET /v1/usage`.
+In-app connect docs: web `/mcp`.
 
 ## Tools
 
@@ -52,11 +72,37 @@ All API calls send `X-SkyVisor-Client: mcp` for usage metering. Free plan is MCP
 - `create_webhook_integration`: signed public-HTTPS endpoint; signing secret returned once (action)
 - `test_webhook_integration`: sends and audits a signed test delivery (action)
 
-## Remote connection (Streamable HTTP)
+## Connecting (one click, no token)
 
 The deployed server listens at `https://mcp.skyvisor.app` (staging:
-`https://staging-mcp.skyvisor.app`). Authenticate with a personal access
-token created on the web app under Settings → MCP connector tokens:
+`https://staging-mcp.skyvisor.app`) and is an OAuth-protected resource. A host
+that speaks OAuth needs nothing but the URL: it reads
+`/.well-known/oauth-protected-resource`, registers itself with the
+authorization server, opens a browser for consent, and stores the tokens
+itself.
+
+```sh
+claude mcp add --transport http skyvisor https://mcp.skyvisor.app
+```
+
+Or add `https://mcp.skyvisor.app` as a custom connector in Claude, ChatGPT,
+Cursor, or any other MCP host that supports remote servers.
+
+Scopes are requested at connect time:
+
+| Scope | Grants |
+|---|---|
+| `skyvisor:read` | Every read tool |
+| `skyvisor:act` | Also the action tools; implies `skyvisor:read` |
+
+A read-only connection is refused action tools with `403 insufficient_scope`,
+naming the scope that would have sufficed, so the host can ask the user to
+reconnect rather than guess.
+
+### Manual token (scripting, or hosts without OAuth)
+
+Authenticate with a personal access token created on the web app under
+Settings → MCP connector tokens:
 
 ```json
 {

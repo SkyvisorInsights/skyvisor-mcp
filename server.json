@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "app.skyvisor/skyvisor",
+  "description": "Flight tracking, airport delay and cargo disruption intelligence, plus a recorded operational decision loop with measured accuracy.",
+  "version": "0.2.0",
+  "websiteUrl": "https://skyvisor.app",
+  "repository": {
+    "url": "https://github.com/SkyvisorInsights/skyvisor-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.skyvisor.app"
+    }
+  ]
+}
