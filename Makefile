@@ -1,4 +1,4 @@
-.PHONY: hooks fmt lint test build
+.PHONY: hooks fmt lint test build verify-pinned
 
 hooks: ## Install versioned git hooks (.githooks → core.hooksPath)
 	bash scripts/install-hooks.sh
@@ -14,3 +14,9 @@ test: ## Run the test suite
 
 build: ## Build all packages
 	go build ./...
+
+verify-pinned: ## Build and test as CI does: no go.work, so go.mod pins decide
+	# go.work resolves sibling modules to the local checkout, hiding a stale
+	# skyvisor-go-shared pin that the workspace-free Docker build would hit.
+	GOWORK=off go build ./...
+	GOWORK=off go test ./... -count=1
