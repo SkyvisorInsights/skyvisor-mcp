@@ -1,5 +1,7 @@
 github.com/SkyvisorInsights/skyvisor-go-shared v0.4.0 h1:xaV+rQj3BYYHfXRgM4VQs6DygxkNWHYe0wQ454GDUCE=
 github.com/SkyvisorInsights/skyvisor-go-shared v0.4.0/go.mod h1:Tr8AmJjg1+U0m5qEvkjN/dcdDLwuIjsiqp1EyYVHHRs=
+github.com/SkyvisorInsights/skyvisor-go-shared v0.5.0 h1:kjraHY03pYcPszOSCbyS12/ak+I5gJT8AHQtNYFowA4=
+github.com/SkyvisorInsights/skyvisor-go-shared v0.5.0/go.mod h1:Tr8AmJjg1+U0m5qEvkjN/dcdDLwuIjsiqp1EyYVHHRs=
 github.com/go-quicktest/qt v1.102.0 h1:HSQxCeh5YZH3EL3W39ixjtyaEhcWSXQHtHnMBzSs474=
 github.com/go-quicktest/qt v1.102.0/go.mod h1:p4lGIVX+8Wa6ZPNDvqcxq36XpUDLh42FLetFU7odllI=
 github.com/golang-jwt/jwt/v5 v5.3.1 h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=

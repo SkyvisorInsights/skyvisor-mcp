@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/SkyvisorInsights/skyvisor-go-shared v0.4.0
+	github.com/SkyvisorInsights/skyvisor-go-shared v0.5.0
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 )
 
