@@ -18,7 +18,7 @@ require (
 
 require (
 	github.com/SkyvisorInsights/skyvisor-go-shared v0.6.0
-	github.com/modelcontextprotocol/go-sdk v1.7.0
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 )
 
 tool mvdan.cc/gofumpt
